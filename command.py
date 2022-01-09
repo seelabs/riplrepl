@@ -561,3 +561,38 @@ class Subscribe(SubscriptionCommand):
         if self.url_password is not None:
             d['url_password'] = self.url_password
         return d
+
+
+class PathFindSubscription(SubscriptionCommand):
+    '''The path_find method requests periodic notifications from the server
+    about the best paths. See: https://xrpl.org/path_find.html'''
+    def __init__(self,
+                 *,
+                 src: Account,
+                 dst: Account,
+                 amt: Asset,
+                 send_max: Optional[Asset] = None):
+        super().__init__()
+        self.src = src
+        self.dst = dst
+        self.amt = amt
+        self.send_max = send_max
+        self.websocket = None
+
+    def cmd_name(self) -> str:
+        return 'path_find'
+
+    def to_cmd_obj(self) -> dict:
+        '''convert to transaction form (suitable for using json.dumps or similar)'''
+        cmd = {
+            'source_account': self.src.account_id,
+            'destination_account': self.dst.account_id,
+            'destination_amount': self.amt.to_cmd_obj()
+        }
+        if self.websocket:
+            cmd['subcommand'] = 'close'
+        else:
+            cmd['subcommand'] = 'create'
+        if self.send_max is not None:
+            cmd['send_max'] = self.send_max.to_cmd_obj()
+        return cmd
