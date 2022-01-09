@@ -3,6 +3,9 @@
 import asyncio
 import argparse
 import os
+import multiprocessing as mp
+import random
+import time
 
 from app import App, single_client_app
 import command
@@ -24,8 +27,33 @@ def parse_args():
     return parser.parse_known_args()[0]
 
 
+callback_count = 0
+
+
 def subscribe_callback(d):
-    print(f'Got callback: {d = }')
+    global callback_count
+    callback_count = callback_count + 1
+    pid = os.getpid()
+    if not callback_count % 10:
+        print(f'Got callback {pid = }:\n {d}')
+    else:
+        print(f'Got callback {pid = }\n')
+
+
+def subscribe_forever(exe, cfg_file):
+    with single_client_app(exe=exe,
+                           config=ConfigFile(file_name=cfg_file),
+                           run_server=False) as app:
+        account = Account(account_id='r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59')
+        issuer = Account(account_id='rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B')
+        amt = Asset(value=0.001, currency='USD', issuer=issuer)
+        si = app(
+            command.PathFindSubscription(src=account, dst=account, amt=amt),
+            subscribe_callback)
+        # print(f'{si = }')
+        while True:
+            asyncio.get_event_loop().run_until_complete(asyncio.sleep(60))
+            print(f'Done sleeping')
 
 
 def main():
@@ -63,19 +91,25 @@ def main():
     if not os.path.exists(cfg_file):
         raise ValueError(f'Config file: {cfg_file} does not exist')
 
-    with single_client_app(exe=exe,
-                           config=ConfigFile(file_name=cfg_file),
-                           run_server=False) as app:
-        account = Account(account_id='r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59')
-        issuer = Account(account_id='rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B')
-        amt = Asset(value=0.001, currency='USD', issuer=issuer)
-        si = app(
-            command.PathFindSubscription(src=account, dst=account, amt=amt),
-            subscribe_callback)
-        print(f'{si = }')
-        while True:
-            asyncio.get_event_loop().run_until_complete(asyncio.sleep(60))
-            print(f'Done sleeping')
+    # Start processes
+    processes = []
+    for i in range(256):
+        p = mp.Process(target=subscribe_forever, args=(exe, cfg_file))
+        p.start()
+        processes.append(p)
+
+    # killing and restarting listeners at random
+    while True:
+        num_to_rm = random.randrange(16)
+        # remove and start in batches; not interleaved
+        for i in range(num_to_rm):
+            to_rm = random.randrange(len(processes))
+            processes.pop(to_rm).terminate()
+        for i in range(num_to_rm):
+            p = mp.Process(target=subscribe_forever, args=(exe, cfg_file))
+            p.start()
+            processes.append(p)
+        time.sleep(2)
 
 
 if __name__ == '__main__':
