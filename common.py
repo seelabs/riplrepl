@@ -22,7 +22,7 @@ def enable_eprint():
 def eprint(*args, **kwargs):
     if not EPRINT_ENABLED:
         return
-    logging.error(*args)
+    # logging.error(*args)
     print(*args, file=sys.stderr, flush=True, **kwargs)
 
 
@@ -45,6 +45,7 @@ class Account:  # pylint: disable=too-few-public-methods
                  secret_key: Optional[str] = None,
                  result_dict: Optional[dict] = None):
         self.account_id = account_id
+        assert type(self.account_id) == str
         self.nickname = nickname
         self.public_key = public_key
         self.public_key_hex = public_key_hex
@@ -70,6 +71,9 @@ class Account:  # pylint: disable=too-few-public-methods
         if self.nickname is not None:
             return self.nickname
         return self.account_id
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def alias_or_account_id(self) -> str:
         '''
@@ -110,6 +114,7 @@ class Asset:
         self.value = value
         self.issuer = issuer
         self.currency = currency
+        self.raw_currency = currency
         if from_asset is not None:
             if self.value is None:
                 self.value = from_asset.value
@@ -123,7 +128,13 @@ class Asset:
                 self.currency = 'XRP'
             else:
                 self.value = from_rpc_result['value']
-                self.currency = float(from_rpc_result['currency'])
+                self.currency = from_rpc_result['currency']
+                try:
+                    self.raw_currency = self.currency
+                    self.currency = bytearray.fromhex(
+                        self.currency.rstrip('0')).decode()
+                except:
+                    pass
                 self.issuer = Account(account_id=from_rpc_result['issuer'])
 
         if self.currency is None:
@@ -131,34 +142,48 @@ class Asset:
 
         if isinstance(self.value, str):
             if self.is_xrp():
-                self.value = int(value)
+                self.value = int(self.value)
             else:
-                self.value = float(value)
+                self.value = float(self.value)
 
     def __call__(self, value: Union[int, float]):
         '''Call operator useful for a terse syntax for assets in tests. I.e. USD(100)'''
         return Asset(value=value, from_asset=self)
 
-    def __add__(self, lhs):
-        assert (self.issuer == lhs.issuer and self.currency == lhs.currency)
-        return Asset(value=self.value + lhs.value,
+    def __add__(self, rhs):
+        assert (self.issuer == rhs.issuer and self.currency == rhs.currency)
+        return Asset(value=self.value + rhs.value,
                      currency=self.currency,
                      issuer=self.issuer)
 
-    def __sub__(self, lhs):
-        assert (self.issuer == lhs.issuer and self.currency == lhs.currency)
-        return Asset(value=self.value - lhs.value,
+    def __sub__(self, rhs):
+        assert (self.issuer == rhs.issuer and self.currency == rhs.currency)
+        return Asset(value=self.value - rhs.value,
                      currency=self.currency,
                      issuer=self.issuer)
 
-    def __eq__(self, lhs):
-        if not isinstance(lhs, self.__class__):
+    def __eq__(self, rhs):
+        if not isinstance(rhs, self.__class__):
             return False
-        return (self.value == lhs.value and self.currency == lhs.currency
-                and self.issuer == lhs.issuer)
+        return (self.value == rhs.value and self.currency == rhs.currency
+                and self.issuer == rhs.issuer)
 
-    def __ne__(self, lhs):
-        return not self.__eq__(lhs)
+    def __ne__(self, rhs):
+        return not self.__eq__(rhs)
+
+    def __lt__(self, rhs):
+        assert (self.issuer == rhs.issuer and self.currency == rhs.currency)
+        return self.value < rhs.value
+
+    def __le__(self, rhs):
+        assert (self.issuer == rhs.issuer and self.currency == rhs.currency)
+        return self.value <= rhs.value
+
+    def _currency(self):
+        currency_part = self.currency
+        if len(self.currency) != 3 and self.raw_currency is not None:
+            currency_part = self.raw_currency
+        return currency_part
 
     def __str__(self) -> str:
         value_part = '' if self.value is None else f'{self.value}/'
@@ -183,7 +208,7 @@ class Asset:
             if self.value is not None:
                 return f'{self.value}'  # must be a string
             return {'currency': self.currency}
-        result = {'currency': self.currency, 'issuer': self.issuer.account_id}
+        result = {'currency': self._currency(), 'issuer': self.issuer.account_id}
         if self.value is not None:
             result['value'] = f'{self.value}'  # must be a string
         return result
