@@ -18,13 +18,22 @@ class RippleClient:
     """Client to send commands to the rippled server"""
 
     def __init__(
-        self, *, config: ConfigFile, exe: str, command_log: Optional[str] = None
+        self,
+        *,
+        websocket_uri: Optional[str] = None,
+        config: Optional[ConfigFile] = None,
+        exe: Optional[str] = None,
+        command_log: Optional[str] = None,
     ):
+        assert websocket_uri or (config and exe)
         self.config = config
         self.exe = exe
         self.command_log = command_log
-        section = config.port_ws_admin_local
-        self.websocket_uri = f"{section.protocol}://{section.ip}:{section.port}"
+        if config:
+            section = config.port_ws_admin_local
+            self.websocket_uri = f"{section.protocol}://{section.ip}:{section.port}"
+        else:
+            self.websocket_uri = websocket_uri
         self.subscription_websockets = []
         self.tasks = []
         self.pid = None

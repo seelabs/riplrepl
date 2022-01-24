@@ -577,7 +577,8 @@ def balances_dataframe(
 @contextmanager
 def single_client_app(
     *,
-    config: ConfigFile,
+    websocket_uri: Optional[str] = None,
+    config: Optional[ConfigFile] = None,
     command_log: Optional[str] = None,
     server_out=os.devnull,
     run_server: bool = True,
@@ -587,11 +588,14 @@ def single_client_app(
 ):
     """Start a ripple server and return an app"""
     try:
+        assert config or websocket_uri
         if extra_args is None:
             extra_args = []
         to_run = None
         app = None
-        client = RippleClient(config=config, command_log=command_log, exe=exe)
+        client = RippleClient(
+            websocket_uri=websocket_uri, config=config, command_log=command_log, exe=exe
+        )
         if run_server:
             to_run = [client.exe, "--conf", client.config_file_name]
             if standalone:

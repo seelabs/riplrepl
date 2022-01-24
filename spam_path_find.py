@@ -62,6 +62,25 @@ def pathfind_forever(exe, cfg_file, candidate):
             asyncio.get_event_loop().run_until_complete(asyncio.sleep(5))
 
 
+def marks_repro(exe, cfg_file):
+    src = Account(account_id="rPrDM69juKRkoCS1h7SeZ8v4WTib3sXkge")
+    dst = Account(account_id="rUzWJkXyEtT8ekSSxkBYPqCvHpngcy6Fks")
+    amt = Asset(value=50000000000)
+
+    with single_client_app(
+        exe=exe, config=ConfigFile(file_name=cfg_file), run_server=False
+    ) as app:
+
+        d = app(
+            command.PathFindSubscription(src=src, dst=dst, amt=amt), subscribe_callback
+        )
+        pid = os.getpid()
+        eprint(f"Initial pathfind connect: {pid = }:\n{d}")
+        global should_exit_pathfind_forever
+        while not should_exit_pathfind_forever:
+            asyncio.get_event_loop().run_until_complete(asyncio.sleep(5))
+
+
 @dataclass
 class PathCandidate:
     src: Account
@@ -201,6 +220,15 @@ def path_find_spam(exe, cfg_file):
             asyncio.get_event_loop().run_until_complete(asyncio.sleep(2))
 
 
+def run_marks_repro_forever(exe, cfg_file):
+    p = mp.Process(target=marks_repro, args=(exe, cfg_file))
+    p.start()
+    while True:
+        asyncio.get_event_loop().run_until_complete(asyncio.sleep(2))
+        if not p.is_alive():
+            break
+
+
 def main():
     # the default method is 'fork'
     # but if we fork the websock ends up being shared in the
@@ -239,7 +267,8 @@ def main():
     if not os.path.exists(cfg_file):
         raise ValueError(f"Config file: {cfg_file} does not exist")
 
-    path_find_spam(exe, cfg_file)
+    # path_find_spam(exe, cfg_file)
+    run_marks_repro_forever(exe, cfg_file)
 
 
 if __name__ == "__main__":
