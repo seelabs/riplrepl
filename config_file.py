@@ -3,25 +3,25 @@ from typing import List, Optional, Tuple
 
 class Section:
     def section_header(l: str) -> Optional[str]:
-        '''
+        """
         If the line is a section header, return the section name
         otherwise return None
-        '''
-        if l.startswith('[') and l.endswith(']'):
+        """
+        if l.startswith("[") and l.endswith("]"):
             return l[1:-1]
         return None
 
     def __init__(self, name: str):
-        super().__setattr__('_name', name)
+        super().__setattr__("_name", name)
         # lines contains all non key-value pairs
-        super().__setattr__('_lines', [])
-        super().__setattr__('_kv_pairs', {})
+        super().__setattr__("_lines", [])
+        super().__setattr__("_kv_pairs", {})
 
     def get_name(self):
         return self._name
 
     def add_line(self, l):
-        s = l.split('=')
+        s = l.split("=")
         if len(s) == 2:
             self._kv_pairs[s[0].strip()] = s[1].strip()
         else:
@@ -66,7 +66,7 @@ class ConfigFile:
         with open(file_name) as f:
             for n, l in enumerate(f):
                 l = l.strip()
-                if l.startswith('#') or not l:
+                if l.startswith("#") or not l:
                     continue
                 if section_name := Section.section_header(l):
                     if cur_section:
@@ -75,7 +75,7 @@ class ConfigFile:
                     continue
                 if not cur_section:
                     raise ValueError(
-                        f'Error parsing config file: {file_name} line_num: {n} line: {l}'
+                        f"Error parsing config file: {file_name} line_num: {n} line: {l}"
                     )
                 cur_section.add_line(l)
 

@@ -18,14 +18,14 @@ from config_file import ConfigFile
 
 def parse_args_helper(parser: argparse.ArgumentParser):
     parser.add_argument(
-        '--pid',
-        '-p',
-        help=('process id of the currently running rippled'),
+        "--pid",
+        "-p",
+        help=("process id of the currently running rippled"),
     )
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description=('Test and debug rippled'))
+    parser = argparse.ArgumentParser(description=("Test and debug rippled"))
     parse_args_helper(parser)
     return parser.parse_known_args()[0]
 
@@ -35,9 +35,9 @@ should_exit_pathfind_forever = False
 
 def subscribe_callback(d):
     pid = os.getpid()
-    eprint(f'Got callback {pid = }:\n{d}')
+    eprint(f"Got callback {pid = }:\n{d}")
     global should_exit_pathfind_forever
-    if 'alternatives' not in d or len(d['alternatives']) == 0:
+    if "alternatives" not in d or len(d["alternatives"]) == 0:
         should_exit_pathfind_forever = True
     else:
         should_exit_pathfind_forever = False
@@ -45,17 +45,18 @@ def subscribe_callback(d):
 
 def pathfind_forever(exe, cfg_file, candidate):
 
-    with single_client_app(exe=exe,
-                           config=ConfigFile(file_name=cfg_file),
-                           run_server=False) as app:
+    with single_client_app(
+        exe=exe, config=ConfigFile(file_name=cfg_file), run_server=False
+    ) as app:
 
         d = app(
-            command.PathFindSubscription(src=candidate.src,
-                                         dst=candidate.dst,
-                                         amt=candidate.amt),
-            subscribe_callback)
+            command.PathFindSubscription(
+                src=candidate.src, dst=candidate.dst, amt=candidate.amt
+            ),
+            subscribe_callback,
+        )
         pid = os.getpid()
-        eprint(f'Initial pathfind connect: {pid = }:\n{d}')
+        eprint(f"Initial pathfind connect: {pid = }:\n{d}")
         global should_exit_pathfind_forever
         while not should_exit_pathfind_forever:
             asyncio.get_event_loop().run_until_complete(asyncio.sleep(5))
@@ -80,11 +81,13 @@ payment_candidates = {}
 
 
 def add_default_payment_candidate():
-    src = Account(account_id='r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59')
+    src = Account(account_id="r9cZA1mLK5R5Am25ArfXFmqgNwjZgnfk59")
     dst = src
-    amt = Asset(value=0.001,
-                currency='USD',
-                issuer=Account(account_id='rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'))
+    amt = Asset(
+        value=0.001,
+        currency="USD",
+        issuer=Account(account_id="rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B"),
+    )
     src_amt = deepcopy(amt)
     src_amt.value = 1.0
     cand = PathCandidate(src, dst, amt, src_amt)
@@ -92,7 +95,7 @@ def add_default_payment_candidate():
     key[0].value = 0
     key[1].value = 0
     global payment_candidates
-    payment_candidates[f'{key}'] = cand  # overwrite old value
+    payment_candidates[f"{key}"] = cand  # overwrite old value
 
 
 add_default_payment_candidate()
@@ -100,24 +103,26 @@ add_default_payment_candidate()
 
 def txn_subscribe_callback(d):
     try:
-        if d['engine_result'] != 'tesSUCCESS' or d['transaction'][
-                'TransactionType'] != 'Payment':
+        if (
+            d["engine_result"] != "tesSUCCESS"
+            or d["transaction"]["TransactionType"] != "Payment"
+        ):
             return
     except:
         return
 
     try:
-        t = d['transaction']
-        src = Account(account_id=t['Account'])
-        dst = Account(account_id=t['Destination'])
-        amt = Asset(from_rpc_result=t['Amount'])
+        t = d["transaction"]
+        src = Account(account_id=t["Account"])
+        dst = Account(account_id=t["Destination"])
+        amt = Asset(from_rpc_result=t["Amount"])
         send_max = None
-        if 'SendMax' in t:
-            send_max = Asset(from_rpc_result=t['SendMax'])
+        if "SendMax" in t:
+            send_max = Asset(from_rpc_result=t["SendMax"])
         src_amt = send_max if send_max is not None else amt
     except:
-        eprint('Got exception')
-        eprint(f'{t = }')
+        eprint("Got exception")
+        eprint(f"{t = }")
         return
 
     if amt.is_xrp() and src_amt.is_xrp():
@@ -133,39 +138,39 @@ def txn_subscribe_callback(d):
         key[0].value = 0
 
         global payment_candidates
-        eprint(f'Adding new choice: {key}')
-        payment_candidates[f'{key}'] = cand  # overwrite old value
+        eprint(f"Adding new choice: {key}")
+        payment_candidates[f"{key}"] = cand  # overwrite old value
         pid = os.getpid()
     except:
-        eprint('Got exception 2')
+        eprint("Got exception 2")
 
 
 def start_random_path_find_subscription(
-        exe, cfg_file) -> Tuple[PathCandidate, mp.Process]:
+    exe, cfg_file
+) -> Tuple[PathCandidate, mp.Process]:
     global payment_candidates
     candidate = random.choice(list(payment_candidates.values()))
     pid = os.getpid()
     eprint(
-        f'Starting path find for {candidate.amt = } {len(payment_candidates) = } {pid = }'
+        f"Starting path find for {candidate.amt = } {len(payment_candidates) = } {pid = }"
     )
     p = mp.Process(target=pathfind_forever, args=(exe, cfg_file, candidate))
     p.start()
     return (candidate, p)
 
+
 def path_find_spam(exe, cfg_file):
-    with single_client_app(exe=exe,
-                           config=ConfigFile(file_name=cfg_file),
-                           run_server=False) as app:
-        d = app(command.Subscribe(streams=['transactions']),
-                txn_subscribe_callback)
+    with single_client_app(
+        exe=exe, config=ConfigFile(file_name=cfg_file), run_server=False
+    ) as app:
+        d = app(command.Subscribe(streams=["transactions"]), txn_subscribe_callback)
         pid = os.getpid()
-        eprint(f'Initial txn subscribe connect: {pid = }:\n{d}')
+        eprint(f"Initial txn subscribe connect: {pid = }:\n{d}")
 
         # Start processes
         processes = []
         for i in range(256):
-            processes.append(start_random_path_find_subscription(
-                exe, cfg_file))
+            processes.append(start_random_path_find_subscription(exe, cfg_file))
 
         # killing and restarting listeners at random
         while True:
@@ -175,8 +180,7 @@ def path_find_spam(exe, cfg_file):
                 to_rm = random.randrange(len(processes))
                 processes.pop(to_rm)[1].terminate()
             for i in range(num_to_rm):
-                processes.append(
-                    start_random_path_find_subscription(exe, cfg_file))
+                processes.append(start_random_path_find_subscription(exe, cfg_file))
 
             # remove any processes that have stopped
             new_processes = []
@@ -188,10 +192,11 @@ def path_find_spam(exe, cfg_file):
                     key = (deepcopy(c.amt), deepcopy(c.src), deepcopy(c.dst))
                     key[0].value = 0
                     key[1].value = 0
-                    eprint(f'xxx Rm choice: {key}')
-                    payment_candidates.pop(f'{key}', None)
+                    eprint(f"xxx Rm choice: {key}")
+                    payment_candidates.pop(f"{key}", None)
                     new_processes.append(
-                        start_random_path_find_subscription(exe, cfg_file))
+                        start_random_path_find_subscription(exe, cfg_file)
+                    )
             processes = new_processes
             asyncio.get_event_loop().run_until_complete(asyncio.sleep(2))
 
@@ -200,21 +205,20 @@ def main():
     # the default method is 'fork'
     # but if we fork the websock ends up being shared in the
     # child processes
-    mp.set_start_method('spawn')
+    mp.set_start_method("spawn")
     args = parse_args()
     if not args.pid:
-        raise ValueError(
-            "Must specify process id of currently running rippled")
+        raise ValueError("Must specify process id of currently running rippled")
     pid = args.pid
-    if not os.path.exists(f'/proc/{pid}'):
-        raise ValueError(f'Process {pid} does not have a /proc entry')
-    if not os.path.exists(f'/proc/{pid}/exe'):
-        raise ValueError(f'Process {pid} does not have an exe entry')
-    exe = f'/proc/{pid}/exe'
+    if not os.path.exists(f"/proc/{pid}"):
+        raise ValueError(f"Process {pid} does not have a /proc entry")
+    if not os.path.exists(f"/proc/{pid}/exe"):
+        raise ValueError(f"Process {pid} does not have an exe entry")
+    exe = f"/proc/{pid}/exe"
 
-    cmdline_file = f'/proc/{pid}/cmdline'
+    cmdline_file = f"/proc/{pid}/cmdline"
     if not os.path.exists(cmdline_file):
-        raise ValueError(f'Process {pid} does not have a cmdline entry')
+        raise ValueError(f"Process {pid} does not have a cmdline entry")
 
     cfg_file = None
 
@@ -222,21 +226,21 @@ def main():
         for l in f:
             if l:
                 use_next = False
-                for w in l.split('\0'):
+                for w in l.split("\0"):
                     if use_next:
                         cfg_file = w
                         break
-                    if w == '--conf':
+                    if w == "--conf":
                         use_next = True
 
     if cfg_file is None:
-        raise ValueError('Could not determine config file from command line')
+        raise ValueError("Could not determine config file from command line")
 
     if not os.path.exists(cfg_file):
-        raise ValueError(f'Config file: {cfg_file} does not exist')
+        raise ValueError(f"Config file: {cfg_file} does not exist")
 
     path_find_spam(exe, cfg_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

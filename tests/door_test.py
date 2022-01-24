@@ -19,15 +19,13 @@ def door_test(mc_app: App, sc_app: App, params: Params):
         name = "s_" + str(i)
         account_side = sc_app.create_account(name)
         mc_app(
-            Payment(account=params.genesis_account,
-                    dst=account_main,
-                    amt=XRP(20_000)))
+            Payment(account=params.genesis_account, dst=account_main, amt=XRP(20_000))
+        )
         mc_app.maybe_ledger_accept()
-    account_main_last = mc_app.account_from_alias("m_" +
-                                                  str(batch_test_num_accounts -
-                                                      1))
-    test_utils.wait_for_balance_change(mc_app, account_main_last, XRP(0),
-                                       XRP(20_000))
+    account_main_last = mc_app.account_from_alias(
+        "m_" + str(batch_test_num_accounts - 1)
+    )
+    test_utils.wait_for_balance_change(mc_app, account_main_last, XRP(0), XRP(20_000))
 
     # test
     to_side_xrp = XRP(1000)
@@ -40,24 +38,23 @@ def door_test(mc_app: App, sc_app: App, params: Params):
             account_main = mc_app.account_from_alias(name_main)
             name_side = "s_" + str(i)
             account_side = sc_app.account_from_alias(name_side)
-            memos = [{
-                'Memo': {
-                    'MemoData': account_side.account_id_str_as_hex()
-                }
-            }]
+            memos = [{"Memo": {"MemoData": account_side.account_id_str_as_hex()}}]
             mc_app(
-                Payment(account=account_main,
-                        dst=params.mc_door_account,
-                        amt=to_side_xrp,
-                        memos=memos))
+                Payment(
+                    account=account_main,
+                    dst=params.mc_door_account,
+                    amt=to_side_xrp,
+                    memos=memos,
+                )
+            )
 
         while 1:
             federator_info = sc_app.federator_info()
             should_loop = False
             for v in federator_info.values():
-                for c in ['mainchain', 'sidechain']:
-                    state = v['info'][c]['listener_info']['state']
-                    if state != 'normal':
+                for c in ["mainchain", "sidechain"]:
+                    state = v["info"][c]["listener_info"]["state"]
+                    if state != "normal":
                         should_loop = True
             if not should_loop:
                 break
@@ -70,12 +67,12 @@ def door_test(mc_app: App, sc_app: App, params: Params):
             server_index = [0]
             federator_info = sc_app.federator_info(server_index)
             for v in federator_info.values():
-                door_status = v['info']['mainchain']['door_status']['status']
+                door_status = v["info"]["mainchain"]["door_status"]["status"]
                 if not door_closing:
-                    if door_status != 'open':
+                    if door_status != "open":
                         door_closing = True
                 else:
-                    if door_status == 'open':
+                    if door_status == "open":
                         door_reopened = True
 
             if not door_reopened:
@@ -85,14 +82,15 @@ def door_test(mc_app: App, sc_app: App, params: Params):
                 break
 
         if not door_reopened:
-            raise ValueError('Expected door status changes did not happen')
+            raise ValueError("Expected door status changes did not happen")
 
         # wait for accounts created on sidechain
         for i in range(batch_test_num_accounts):
             name_side = "s_" + str(i)
             account_side = sc_app.account_from_alias(name_side)
-            test_utils.wait_for_balance_change(sc_app, account_side, XRP(0),
-                                               to_side_xrp)
+            test_utils.wait_for_balance_change(
+                sc_app, account_side, XRP(0), to_side_xrp
+            )
 
         # # try one xchain payment, each direction
         name_main = "m_" + str(0)
@@ -101,16 +99,16 @@ def door_test(mc_app: App, sc_app: App, params: Params):
         account_side = sc_app.account_from_alias(name_side)
 
         pre_bal = mc_app.get_balance(account_main, XRP(0))
-        sidechain.side_to_main_transfer(mc_app, sc_app, account_side,
-                                        account_main, to_main_xrp, params)
-        test_utils.wait_for_balance_change(mc_app, account_main, pre_bal,
-                                           to_main_xrp)
+        sidechain.side_to_main_transfer(
+            mc_app, sc_app, account_side, account_main, to_main_xrp, params
+        )
+        test_utils.wait_for_balance_change(mc_app, account_main, pre_bal, to_main_xrp)
 
         pre_bal = sc_app.get_balance(account_side, XRP(0))
-        sidechain.main_to_side_transfer(mc_app, sc_app, account_main,
-                                        account_side, last_tx_xrp, params)
-        test_utils.wait_for_balance_change(sc_app, account_side, pre_bal,
-                                           last_tx_xrp)
+        sidechain.main_to_side_transfer(
+            mc_app, sc_app, account_main, account_side, last_tx_xrp, params
+        )
+        test_utils.wait_for_balance_change(sc_app, account_side, pre_bal, last_tx_xrp)
 
 
 def test_door_operations(configs_dirs_dict: Dict[int, str]):

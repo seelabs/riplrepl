@@ -13,14 +13,17 @@ import test_utils
 import time
 
 
-def run(mc_app: App, sc_app: App, params: Params,
-        test_case: Callable[[App, App, Params], None]):
+def run(
+    mc_app: App,
+    sc_app: App,
+    params: Params,
+    test_case: Callable[[App, App, Params], None],
+):
     # process will run while stop token is non-zero
-    stop_token = Value('i', 1)
+    stop_token = Value("i", 1)
     p = None
     if mc_app.standalone:
-        p = Process(target=sidechain.close_mainchain_ledgers,
-                    args=(stop_token, params))
+        p = Process(target=sidechain.close_mainchain_ledgers, args=(stop_token, params))
         p.start()
     try:
         test_case(mc_app, sc_app, params)
@@ -29,31 +32,27 @@ def run(mc_app: App, sc_app: App, params: Params,
             stop_token.value = 0
             p.join()
         sidechain._convert_log_files_to_json(
-            mc_app.get_configs() + sc_app.get_configs(), 'final.json')
+            mc_app.get_configs() + sc_app.get_configs(), "final.json"
+        )
 
 
-def standalone_test(params: Params, test_case: Callable[[App, App, Params],
-                                                        None]):
+def standalone_test(params: Params, test_case: Callable[[App, App, Params], None]):
     def callback(mc_app: App, sc_app: App):
         run(mc_app, sc_app, params, test_case)
 
-    sidechain._standalone_with_callback(params,
-                                        callback,
-                                        setup_user_accounts=False)
+    sidechain._standalone_with_callback(params, callback, setup_user_accounts=False)
 
 
-def multinode_test(params: Params, test_case: Callable[[App, App, Params],
-                                                       None]):
+def multinode_test(params: Params, test_case: Callable[[App, App, Params], None]):
     def callback(mc_app: App, sc_app: App):
         run(mc_app, sc_app, params, test_case)
 
-    sidechain._multinode_with_callback(params,
-                                       callback,
-                                       setup_user_accounts=False)
+    sidechain._multinode_with_callback(params, callback, setup_user_accounts=False)
 
 
-def test_start(configs_dirs_dict: Dict[int, str],
-               test_case: Callable[[App, App, Params], None]):
+def test_start(
+    configs_dirs_dict: Dict[int, str], test_case: Callable[[App, App, Params], None]
+):
     params = sidechain.Params(configs_dir=configs_dirs_dict[1])
 
     if err_str := params.check_error():

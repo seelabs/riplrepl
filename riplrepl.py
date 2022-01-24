@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-'''
+"""
 Script to run an interactive shell to test sidechains.
-'''
+"""
 
 import sys
 
@@ -31,5 +31,5 @@ def main():
         sidechain.multinode_interactive_repl(params)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
